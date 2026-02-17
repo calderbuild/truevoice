@@ -33,6 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local sqlite
+local.db
+
+# hardhat / solidity
+/cache
+/artifacts
+
 # vercel
 .vercel
 
