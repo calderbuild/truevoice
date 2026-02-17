@@ -46,3 +46,13 @@ local.db
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright
+.playwright-mcp/
+
+# screenshots
+*.png
+*.jpeg
+
+# docs/plans (local only)
+/docs/
