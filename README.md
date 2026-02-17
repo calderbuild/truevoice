@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TrueVoice
 
-## Getting Started
+Human-verified reviews powered by World ID. Every review comes from a unique, Orb-verified human -- no fakes, no bots, no duplicates.
 
-First, run the development server:
+Built for [ETHGlobal Cannes 2026](https://ethglobal.com/events/cannes) (World track).
+
+## Problem
+
+Fake reviews cost the global economy $152B+ annually. AI makes traditional detection useless. TrueVoice uses World ID's proof of personhood to guarantee **one person, one review** per entity -- cryptographically enforced, on-chain recorded.
+
+## How It Works
+
+1. **Verify** -- User proves they're a unique human via World ID (Orb level)
+2. **Review** -- Rate 1-5 stars + write a text review (10-280 chars)
+3. **Record** -- Review hash is stored on World Chain; full text in database
+4. **Enforce** -- Same person cannot review the same entity twice (nullifier-based)
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 (App Router) + Tailwind CSS v4 |
+| Identity | World ID via MiniKit SDK (`@worldcoin/minikit-js`) |
+| Database | Turso / LibSQL (serverless SQLite) |
+| Smart Contract | Solidity 0.8.24 (review hash registry) |
+| Chain | World Chain (OP Stack, gasless) |
+| Deployment | Vercel |
+
+## Pages
+
+- `/` -- Feed (latest verified reviews) + Places tab
+- `/write` -- Write a review (select entity -> rate -> verify -> submit)
+- `/entity/[id]` -- Entity detail with rating distribution and reviews
+- `/profile` -- User profile with review history
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local
+# Edit .env.local with your credentials
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+TURSO_DATABASE_URL=file:local.db        # Local dev (or Turso URL for prod)
+TURSO_AUTH_TOKEN=                        # Turso auth token (prod only)
+WLD_APP_ID=app_...                      # World Developer Portal app ID
+WLD_ACTION=review                       # World ID action name
+NEXT_PUBLIC_DEMO_MODE=true              # Skip World ID verification for testing
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Seed Data
 
-## Learn More
+With the dev server running:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+curl -X POST http://localhost:3000/api/seed
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This creates 6 Cannes-local entities (restaurants, attractions, events) and 5 demo reviews.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Smart Contract
 
-## Deploy on Vercel
+`contracts/TrueVoice.sol` -- Stores review hashes on-chain for immutability.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `submitReview(entityId, reviewHash, rating)` -- Owner-only, called by trusted backend
+- `reviewExists(hash)` -- Check if a review hash is recorded
+- `getAverageRating(entityId)` -- On-chain average (x100 precision)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy via Remix IDE to World Chain.
+
+## Architecture
+
+```
+World App (Host)
+  |
+  v
+TrueVoice Mini App (WebView)
+  |
+  +-- MiniKit.verify()     --> World ID proof of personhood
+  +-- MiniKit.walletAuth() --> Wallet-based session
+  |
+  v
+Next.js API Routes
+  |
+  +-- POST /api/reviews    --> Verify proof, store review, submit hash on-chain
+  +-- GET  /api/reviews    --> Fetch reviews (by entity or wallet)
+  +-- GET  /api/entities   --> List entities
+  |
+  +---> Turso DB (full review text)
+  +---> World Chain (review hash registry)
+```
+
+## License
+
+MIT
